@@ -1,0 +1,22 @@
+services:
+  saas-status:
+    build: .
+    image: saas-status-app
+    container_name: saas-status
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      DB_PATH: /app/data/status.db
+      POLL_INTERVAL_MS: "300000"
+      FETCH_TIMEOUT_MS: "20000"
+      # Set to the header your SSO proxy injects (e.g. x-auth-user) to
+      # require authenticated access to the API. Leave unset on a trusted
+      # internal network segment.
+      # AUTH_HEADER: x-auth-user
+    volumes:
+      - saas-status-data:/app/data
+
+volumes:
+  saas-status-data:

@@ -1,0 +1,503 @@
+[
+  {
+    "key": "onepassword",
+    "name": "1Password",
+    "category": "Security",
+    "source_url": "https://status.1password.com/api/v2/summary.json",
+    "status_page_url": "https://status.1password.com",
+    "support_url": "https://support.1password.com",
+    "support_label": "Support",
+    "logo": "assets/logos/onepassword.svg"
+  },
+  {
+    "key": "aws",
+    "name": "AWS",
+    "category": "Cloud Platform",
+    "source_url": "https://health.aws.amazon.com/public/currentevents",
+    "status_page_url": "https://health.aws.amazon.com/health/status",
+    "support_url": "https://aws.amazon.com/support",
+    "support_label": "AWS Support",
+    "logo": "assets/logos/aws.svg",
+    "fallback_url": "https://status.aws.amazon.com/rss/all.rss"
+  },
+  {
+    "key": "airtable",
+    "name": "Airtable",
+    "category": "Data",
+    "source_url": "https://status.airtable.com/api/v2/summary.json",
+    "status_page_url": "https://status.airtable.com",
+    "support_url": "https://support.airtable.com",
+    "support_label": "Support",
+    "logo": "assets/logos/airtable.png"
+  },
+  {
+    "key": "amplitude",
+    "name": "Amplitude",
+    "category": "Analytics",
+    "source_url": "https://status.amplitude.com/api/v2/summary.json",
+    "status_page_url": "https://status.amplitude.com",
+    "support_url": "https://help.amplitude.com/",
+    "support_label": "Help center",
+    "logo": "assets/logos/amplitude.svg"
+  },
+  {
+    "key": "anthropic",
+    "name": "Anthropic",
+    "category": "AI",
+    "source_url": "https://status.claude.com/api/v2/summary.json",
+    "status_page_url": "https://status.claude.com",
+    "support_url": "https://support.anthropic.com",
+    "support_label": "Support center",
+    "logo": "assets/logos/anthropic.svg"
+  },
+  {
+    "key": "asana",
+    "name": "Asana",
+    "category": "Productivity",
+    "source_url": "https://status.asana.com/api/v2/summary.json",
+    "status_page_url": "https://status.asana.com",
+    "support_url": "https://help.asana.com",
+    "support_label": "Help center",
+    "logo": "assets/logos/asana.png"
+  },
+  {
+    "key": "auth0",
+    "name": "Auth0",
+    "category": "Security",
+    "source_url": "https://auth0.statuspage.io/api/v2/summary.json",
+    "status_page_url": "https://status.auth0.com",
+    "support_url": "https://support.auth0.com",
+    "support_label": "Support center",
+    "logo": "assets/logos/auth0.svg"
+  },
+  {
+    "key": "canva",
+    "name": "Canva",
+    "category": "Design",
+    "source_url": "https://www.canvastatus.com/api/v2/summary.json",
+    "status_page_url": "https://www.canvastatus.com",
+    "support_url": "https://www.canva.com/help/",
+    "support_label": "Help center",
+    "logo": "assets/logos/canva.png"
+  },
+  {
+    "key": "clickup",
+    "name": "ClickUp",
+    "category": "Productivity",
+    "source_url": "https://status.clickup.com/api/v2/summary.json",
+    "status_page_url": "https://status.clickup.com/",
+    "support_url": "https://help.clickup.com/",
+    "support_label": "Help center",
+    "logo": "assets/logos/clickup.png"
+  },
+  {
+    "key": "cloudflare",
+    "name": "Cloudflare",
+    "category": "Edge & Network",
+    "source_url": "https://www.cloudflarestatus.com/api/v2/summary.json",
+    "status_page_url": "https://www.cloudflarestatus.com",
+    "support_url": "https://dash.cloudflare.com/?account=support",
+    "support_label": "Support portal",
+    "logo": "assets/logos/cloudflare.svg"
+  },
+  {
+    "key": "confluence",
+    "name": "Confluence",
+    "category": "Productivity",
+    "source_url": "https://confluence.status.atlassian.com/api/v2/summary.json",
+    "status_page_url": "https://confluence.status.atlassian.com",
+    "support_url": "https://support.atlassian.com/confluence-cloud/",
+    "support_label": "Help center",
+    "logo": "assets/logos/confluence.svg"
+  },
+  {
+    "key": "datadog",
+    "name": "Datadog",
+    "category": "Monitoring",
+    "source_url": "https://status.datadoghq.com/api/v2/summary.json",
+    "status_page_url": "https://status.datadoghq.com",
+    "support_url": "https://help.datadoghq.com/hc/en-us",
+    "support_label": "Support portal",
+    "logo": "assets/logos/datadog.svg"
+  },
+  {
+    "key": "digitalocean",
+    "name": "DigitalOcean",
+    "category": "Cloud Platform",
+    "source_url": "https://status.digitalocean.com/api/v2/summary.json",
+    "status_page_url": "https://status.digitalocean.com",
+    "support_url": "https://www.digitalocean.com/support",
+    "support_label": "Support",
+    "logo": "assets/logos/digitalocean.svg"
+  },
+  {
+    "key": "discord",
+    "name": "Discord",
+    "category": "Communication",
+    "source_url": "https://discordstatus.com/api/v2/summary.json",
+    "status_page_url": "https://discordstatus.com",
+    "support_url": "https://support.discord.com",
+    "support_label": "Support center",
+    "logo": "assets/logos/discord.svg"
+  },
+  {
+    "key": "docker",
+    "name": "Docker",
+    "category": "Development",
+    "source_url": "https://www.dockerstatus.com/feed.rss",
+    "status_page_url": "https://www.dockerstatus.com/",
+    "support_url": "https://www.docker.com/support/",
+    "support_label": "Docker Support",
+    "logo": "assets/logos/docker.svg"
+  },
+  {
+    "key": "docusign",
+    "name": "DocuSign",
+    "category": "Agreements",
+    "source_url": "https://health.docusign.com/production/1ds/ssg/apps/health/dynamic/incidents.json",
+    "status_page_url": "https://status.docusign.com",
+    "support_url": "https://support.docusign.com",
+    "support_label": "Support center",
+    "logo": "assets/logos/docusign.svg"
+  },
+  {
+    "key": "duo",
+    "name": "Duo",
+    "category": "Security",
+    "source_url": "https://status.duo.com/api/v2/summary.json",
+    "status_page_url": "https://status.duo.com",
+    "support_url": "https://help.duo.com",
+    "support_label": "Help center",
+    "logo": "assets/logos/duo.svg"
+  },
+  {
+    "key": "figma",
+    "name": "Figma",
+    "category": "Design",
+    "source_url": "https://status.figma.com/api/v2/summary.json",
+    "status_page_url": "https://status.figma.com",
+    "support_url": "https://help.figma.com",
+    "support_label": "Help center",
+    "logo": "assets/logos/figma.svg"
+  },
+  {
+    "key": "github",
+    "name": "GitHub",
+    "category": "Development",
+    "source_url": "https://www.githubstatus.com/api/v2/summary.json",
+    "status_page_url": "https://www.githubstatus.com",
+    "support_url": "https://help.github.com",
+    "support_label": "Help center",
+    "logo": "assets/logos/github.svg"
+  },
+  {
+    "key": "gitlab",
+    "name": "GitLab",
+    "category": "Development",
+    "source_url": "https://api.status.io/1.0/status/5b36dc6502d06804c08349f7",
+    "status_page_url": "https://status.gitlab.com",
+    "support_url": "https://about.gitlab.com/support/",
+    "support_label": "Support",
+    "logo": "assets/logos/gitlab.svg"
+  },
+  {
+    "key": "google-workspace",
+    "name": "Google Workspace",
+    "category": "Productivity",
+    "source_url": "https://www.google.com/appsstatus/dashboard/incidents.json",
+    "status_page_url": "https://www.google.com/appsstatus/dashboard/products.json",
+    "support_url": "https://support.google.com/a",
+    "support_label": "Admin help",
+    "logo": "assets/logos/google-workspace.png"
+  },
+  {
+    "key": "grafana-cloud",
+    "name": "Grafana Cloud",
+    "category": "Monitoring",
+    "source_url": "https://status.grafana.com/api/v2/summary.json",
+    "status_page_url": "https://status.grafana.com",
+    "support_url": "https://grafana.com/docs",
+    "support_label": "Documentation",
+    "logo": "assets/logos/grafana-cloud.svg"
+  },
+  {
+    "key": "harness",
+    "name": "Harness",
+    "category": "Development",
+    "source_url": "https://status.harness.io/api/v2/summary.json",
+    "status_page_url": "https://status.harness.io",
+    "support_url": "https://developer.harness.io/",
+    "support_label": "Developer hub",
+    "logo": "assets/logos/harness.png"
+  },
+  {
+    "key": "hashicorp",
+    "name": "HashiCorp Services",
+    "category": "Cloud Platform",
+    "source_url": "https://status.hashicorp.com/api/v2/summary.json",
+    "status_page_url": "https://status.hashicorp.com/",
+    "support_url": "https://www.ibm.com/mysupport",
+    "support_label": "IBM support",
+    "logo": "assets/logos/hashicorp.svg"
+  },
+  {
+    "key": "hubspot",
+    "name": "HubSpot",
+    "category": "CRM",
+    "source_url": "https://status.hubspot.com/api/v2/summary.json",
+    "status_page_url": "https://status.hubspot.com",
+    "support_url": "https://help.hubspot.com",
+    "support_label": "Help center",
+    "logo": "assets/logos/hubspot.png"
+  },
+  {
+    "key": "intercom",
+    "name": "Intercom",
+    "category": "Customer Support",
+    "source_url": "https://www.finstatus.com/us-hosting/feed.rss",
+    "status_page_url": "https://www.finstatus.com/us-hosting",
+    "support_url": "https://www.intercom.com/help",
+    "support_label": "Help center",
+    "logo": "assets/logos/intercom.png"
+  },
+  {
+    "key": "jira",
+    "name": "Jira",
+    "category": "Productivity",
+    "source_url": "https://jira-software.status.atlassian.com/api/v2/summary.json",
+    "status_page_url": "https://jira-software.status.atlassian.com",
+    "support_url": "https://support.atlassian.com/jira-software-cloud/",
+    "support_label": "Help center",
+    "logo": "assets/logos/jira.svg"
+  },
+  {
+    "key": "launchdarkly",
+    "name": "LaunchDarkly",
+    "category": "Development",
+    "source_url": "https://status.launchdarkly.com/api/v2/summary.json",
+    "status_page_url": "https://status.launchdarkly.com",
+    "support_url": "https://docs.launchdarkly.com",
+    "support_label": "Documentation",
+    "logo": "assets/logos/launchdarkly.png"
+  },
+  {
+    "key": "microsoft",
+    "name": "Microsoft Cloud",
+    "category": "Cloud Platform",
+    "source_url": "https://status.cloud.microsoft/api/posts/azure",
+    "status_page_url": "https://status.cloud.microsoft/",
+    "support_url": "https://support.microsoft.com",
+    "support_label": "Microsoft Support",
+    "logo": "assets/logos/microsoft.png"
+  },
+  {
+    "key": "mixpanel",
+    "name": "Mixpanel",
+    "category": "Analytics",
+    "source_url": "https://www.mixpanelstatus.com/api/v2/summary.json",
+    "status_page_url": "https://www.mixpanelstatus.com",
+    "support_url": "https://help.mixpanel.com/",
+    "support_label": "Help center",
+    "logo": "assets/logos/mixpanel.png"
+  },
+  {
+    "key": "monday",
+    "name": "Monday.com",
+    "category": "Productivity",
+    "source_url": "https://status.monday.com/api/v2/summary.json",
+    "status_page_url": "https://status.monday.com",
+    "support_url": "https://monday.com/support",
+    "support_label": "Support",
+    "logo": "assets/logos/monday.png"
+  },
+  {
+    "key": "mongodb-cloud",
+    "name": "MongoDB Cloud",
+    "category": "Data",
+    "source_url": "https://status.mongodb.com/api/v2/summary.json",
+    "status_page_url": "https://status.mongodb.com",
+    "support_url": "https://www.mongodb.com/support",
+    "support_label": "Support hub",
+    "logo": "assets/logos/mongodb-cloud.svg"
+  },
+  {
+    "key": "netlify",
+    "name": "Netlify",
+    "category": "Cloud Platform",
+    "source_url": "https://www.netlifystatus.com/api/v2/summary.json",
+    "status_page_url": "https://www.netlifystatus.com",
+    "support_url": "https://netlify.com/support",
+    "support_label": "Support",
+    "logo": "assets/logos/netlify.svg"
+  },
+  {
+    "key": "notion",
+    "name": "Notion",
+    "category": "Productivity",
+    "source_url": "https://www.notion-status.com/api/v2/summary.json",
+    "status_page_url": "https://www.notion-status.com/",
+    "support_url": "https://www.notion.so/help",
+    "support_label": "Help center",
+    "logo": "assets/logos/notion.svg"
+  },
+  {
+    "key": "openai",
+    "name": "OpenAI",
+    "category": "AI",
+    "source_url": "https://status.openai.com/api/v2/summary.json",
+    "status_page_url": "https://status.openai.com/",
+    "support_url": "https://help.openai.com",
+    "support_label": "Help center",
+    "logo": "assets/logos/openai.svg"
+  },
+  {
+    "key": "pagerduty",
+    "name": "PagerDuty",
+    "category": "Monitoring",
+    "source_url": "https://status.pagerduty.com",
+    "status_page_url": "https://status.pagerduty.com",
+    "support_url": "https://support.pagerduty.com",
+    "support_label": "Support center",
+    "logo": "assets/logos/pagerduty.svg"
+  },
+  {
+    "key": "plaid",
+    "name": "Plaid",
+    "category": "Data",
+    "source_url": "https://status.plaid.com/api/v2/summary.json",
+    "status_page_url": "https://status.plaid.com/",
+    "support_url": "https://plaid.com/docs",
+    "support_label": "Documentation",
+    "logo": "assets/logos/plaid.svg"
+  },
+  {
+    "key": "salesforce",
+    "name": "Salesforce",
+    "category": "CRM",
+    "source_url": "https://api.status.salesforce.com/v1/incidents",
+    "status_page_url": "https://status.salesforce.com",
+    "support_url": "https://help.salesforce.com",
+    "support_label": "Help",
+    "logo": "assets/logos/salesforce.svg"
+  },
+  {
+    "key": "segment",
+    "name": "Segment",
+    "category": "Data",
+    "source_url": "https://status.segment.com/api/v2/summary.json",
+    "status_page_url": "https://status.segment.com",
+    "support_url": "https://segment.com/docs/",
+    "support_label": "Documentation",
+    "logo": "assets/logos/segment.png"
+  },
+  {
+    "key": "sentinelone",
+    "name": "SentinelOne",
+    "category": "Security",
+    "source_url": "https://status.sentinelone.com/api/v2/summary.json",
+    "status_page_url": "https://status.sentinelone.com",
+    "support_url": "https://www.sentinelone.com/global-services/get-support-now/",
+    "support_label": "Customer support",
+    "logo": "assets/logos/sentinelone.png"
+  },
+  {
+    "key": "shopify",
+    "name": "Shopify",
+    "category": "Commerce",
+    "source_url": "https://www.shopifystatus.com/api/v2/summary.json",
+    "status_page_url": "https://www.shopifystatus.com",
+    "support_url": "https://help.shopify.com",
+    "support_label": "Help center",
+    "logo": "assets/logos/shopify.svg"
+  },
+  {
+    "key": "slack",
+    "name": "Slack",
+    "category": "Communication",
+    "source_url": "https://slack-status.com/api/v2.0.0/current",
+    "status_page_url": "https://status.slack.com",
+    "support_url": "https://slack.com/help",
+    "support_label": "Help center",
+    "logo": "assets/logos/slack.svg"
+  },
+  {
+    "key": "snowflake",
+    "name": "Snowflake",
+    "category": "Data",
+    "source_url": "https://status.snowflake.com/api/v2/summary.json",
+    "status_page_url": "https://status.snowflake.com",
+    "support_url": "https://community.snowflake.com/",
+    "support_label": "Support community",
+    "logo": "assets/logos/snowflake.png"
+  },
+  {
+    "key": "snyk",
+    "name": "Snyk",
+    "category": "Security",
+    "source_url": "https://status.snyk.io/api/v2/summary.json",
+    "status_page_url": "https://status.snyk.io",
+    "support_url": "https://docs.snyk.io/",
+    "support_label": "Documentation",
+    "logo": "assets/logos/snyk.svg"
+  },
+  {
+    "key": "supabase",
+    "name": "Supabase",
+    "category": "Data",
+    "source_url": "https://status.supabase.com/api/v2/summary.json",
+    "status_page_url": "https://status.supabase.com",
+    "support_url": "https://supabase.com/support",
+    "support_label": "Help & support",
+    "logo": "assets/logos/supabase.svg"
+  },
+  {
+    "key": "twilio",
+    "name": "Twilio",
+    "category": "Communication",
+    "source_url": "https://status.twilio.com/api/v2/summary.json",
+    "status_page_url": "https://status.twilio.com",
+    "support_url": "https://support.twilio.com",
+    "support_label": "Support portal",
+    "logo": "assets/logos/twilio.svg"
+  },
+  {
+    "key": "vercel",
+    "name": "Vercel",
+    "category": "Cloud Platform",
+    "source_url": "https://www.vercel-status.com/api/v2/summary.json",
+    "status_page_url": "https://www.vercel-status.com",
+    "support_url": "https://vercel.com/help",
+    "support_label": "Help center",
+    "logo": "assets/logos/vercel.svg"
+  },
+  {
+    "key": "webflow",
+    "name": "Webflow",
+    "category": "Development",
+    "source_url": "https://status.webflow.com/api/v2/summary.json",
+    "status_page_url": "https://status.webflow.com",
+    "support_url": "https://help.webflow.com/",
+    "support_label": "Help center",
+    "logo": "assets/logos/webflow.svg"
+  },
+  {
+    "key": "zendesk",
+    "name": "Zendesk",
+    "category": "Customer Support",
+    "source_url": "https://status.zendesk.com/api/ssp/incidents.json",
+    "status_page_url": "https://status.zendesk.com",
+    "support_url": "https://support.zendesk.com",
+    "support_label": "Support center",
+    "logo": "assets/logos/zendesk.svg"
+  },
+  {
+    "key": "zoom",
+    "name": "Zoom",
+    "category": "Communication",
+    "source_url": "https://www.zoomstatus.com/api/v2/summary.json",
+    "status_page_url": "https://www.zoomstatus.com",
+    "support_url": "https://support.zoom.com",
+    "support_label": "Support center",
+    "logo": "assets/logos/zoom.png"
+  }
+]

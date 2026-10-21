@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SaaS Status — Live Operations Console</title>
+<meta name="description" content="Live status of 50 SaaS vendors, tracked function-by-function from each provider's official status feed.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='42' fill='%2357b97e'/></svg>">
+</head>
+<body>
+<div class="page-glow" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"><span class="pulse-dot"></span></div>
+      <div>
+        <h1>SaaS Status</h1>
+        <p class="tagline">Live operations console &middot; <span id="vendor-count">50</span> vendors, function by function</p>
+      </div>
+    </div>
+    <div class="topbar-meta">
+      <div class="updated-wrap">
+        <span class="meta-label">Feed health</span>
+        <span class="meta-value mono" id="feed-health">—</span>
+      </div>
+      <div class="updated-wrap">
+        <span class="meta-label">Last updated</span>
+        <span class="meta-value mono" id="last-updated">—</span>
+      </div>
+      <div class="updated-wrap">
+        <span class="meta-label">Server polls</span>
+        <span class="meta-value mono" id="next-refresh">every 5 min</span>
+      </div>
+      <button class="btn-refresh" id="refresh-btn" type="button" aria-label="Refresh all vendor statuses now">
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+  <section class="kpis" id="kpis" aria-label="Summary">
+    <div class="kpi kpi-ok">
+      <span class="kpi-label">Operational</span>
+      <span class="kpi-value mono" id="kpi-operational">–</span>
+      <span class="kpi-sub">vendors fully healthy</span>
+    </div>
+    <div class="kpi kpi-warn">
+      <span class="kpi-label">With issues</span>
+      <span class="kpi-value mono" id="kpi-issues">–</span>
+      <span class="kpi-sub">degraded / partial / major</span>
+    </div>
+    <div class="kpi kpi-info">
+      <span class="kpi-label">Active incidents</span>
+      <span class="kpi-value mono" id="kpi-incidents">–</span>
+      <span class="kpi-sub">across all vendors</span>
+    </div>
+    <div class="kpi kpi-neutral">
+      <span class="kpi-label">In maintenance</span>
+      <span class="kpi-value mono" id="kpi-maintenance">–</span>
+      <span class="kpi-sub">vendors in maintenance now</span>
+    </div>
+    <div class="kpi kpi-unknown">
+      <span class="kpi-label">Unknown</span>
+      <span class="kpi-value mono" id="kpi-unknown">–</span>
+      <span class="kpi-sub">feed unreachable</span>
+    </div>
+  </section>
+
+  <section class="toolbar" aria-label="Filters">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="search" placeholder="Search vendors or functions…" autocomplete="off" aria-label="Search vendors or functions">
+    </div>
+    <div class="select-wrap">
+      <select id="category" aria-label="Filter by category">
+        <option value="">All categories</option>
+      </select>
+    </div>
+    <label class="toggle-wrap">
+      <input type="checkbox" id="problems-only">
+      <span class="toggle" aria-hidden="true"></span>
+      <span class="toggle-label">Problems only</span>
+    </label>
+    <span class="result-count mono" id="result-count"></span>
+  </section>
+
+  <div class="fav-hint" id="fav-hint" hidden>
+    <span aria-hidden="true">☆</span> Pin up to 10 vendors as favorites — click the star on any card and it stays at the top.
+  </div>
+
+  <section id="fav-section" aria-label="Your favorite vendors" hidden>
+    <h2 class="section-title"><span aria-hidden="true">★</span> Your favorites <span class="mono fav-count" id="fav-count"></span></h2>
+    <div class="grid" id="fav-grid"></div>
+  </section>
+
+  <h2 class="section-title" id="all-title" hidden>All vendors</h2>
+  <section class="grid" id="grid" aria-label="Vendor status cards">
+    <div class="card skeleton"><div class="card-head"><div class="sk sk-logo"></div><div style="flex:1"><div class="sk sk-line" style="width:60%;margin-bottom:8px"></div><div class="sk sk-line" style="width:35%"></div></div><div class="sk sk-pill"></div></div><div class="sk sk-line" style="width:80%"></div><div class="sk sk-line" style="width:55%"></div></div>
+    <div class="card skeleton"><div class="card-head"><div class="sk sk-logo"></div><div style="flex:1"><div class="sk sk-line" style="width:60%;margin-bottom:8px"></div><div class="sk sk-line" style="width:35%"></div></div><div class="sk sk-pill"></div></div><div class="sk sk-line" style="width:80%"></div><div class="sk sk-line" style="width:55%"></div></div>
+    <div class="card skeleton"><div class="card-head"><div class="sk sk-logo"></div><div style="flex:1"><div class="sk sk-line" style="width:60%;margin-bottom:8px"></div><div class="sk sk-line" style="width:35%"></div></div><div class="sk sk-pill"></div></div><div class="sk sk-line" style="width:80%"></div><div class="sk sk-line" style="width:55%"></div></div>
+    <div class="card skeleton"><div class="card-head"><div class="sk sk-logo"></div><div style="flex:1"><div class="sk sk-line" style="width:60%;margin-bottom:8px"></div><div class="sk sk-line" style="width:35%"></div></div><div class="sk sk-pill"></div></div><div class="sk sk-line" style="width:80%"></div><div class="sk sk-line" style="width:55%"></div></div>
+  </section>
+
+  <footer class="footer">
+    <p>Every status above is polled server-side from that vendor&rsquo;s <em>official</em> public status feed — no third-party aggregators.
+       All viewers see the same cached data; if a feed fails, the last known status stays up and the outage is flagged in feed health.</p>
+    <p class="footer-sub mono">Favorites are stored in your browser only &middot; Feed health: <a href="/api/health" target="_blank" rel="noopener">/api/health</a></p>
+  </footer>
+</main>
+
+<div class="toast mono" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="app.js?v=1"></script>
+</body>
+</html>

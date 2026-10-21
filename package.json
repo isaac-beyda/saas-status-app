@@ -1,0 +1,15 @@
+{
+  "description": "Internal SaaS vendor status dashboard \u2014 backend aggregator, API, and frontend in one process.",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "main": "server/index.js",
+  "name": "saas-status-app",
+  "private": true,
+  "scripts": {
+    "smoke": "node scripts/smoke.js",
+    "start": "node server/index.js",
+    "test": "node --test"
+  },
+  "version": "1.0.0"
+}
