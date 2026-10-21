@@ -55,17 +55,22 @@ Vendor-specific sources worth knowing:
 | Google Workspace | Apps Status incidents + products catalog | |
 | Everyone else | statuspage.io `summary.json` (or vendor equivalent) | GitLab uses status.io; Slack a custom active-incidents API; Docker/Intercom use incident.io RSS. |
 
-## Favorites
+## Favorites (per viewer)
 
-Each viewer can star up to **10 vendors**; starred vendors pin to a
-"Your favorites" section at the top (severity-sorted). Favorites are stored
-in the browser's `localStorage` (`ssa-favorites-v1`) — per person, per
-browser, no account needed.
+The dashboard tracks 50 vendors; favorites keep your own stack on top.
 
-Upgrade path: behind SSO, key favorites server-side by the authenticated
-user (add a `/api/favorites` route reading the same header described under
-Authentication, store rows in SQLite, and swap the localStorage calls in
-`public/app.js`).
+1. Click the ☆ on any vendor card to star it.
+2. Starred vendors collect in a **Your favorites** section pinned above the
+   full grid, worst-status-first, with a counter (e.g. `7/10`).
+3. Click the star again to unstar.
+4. The cap is **10** — starring an 11th shows a toast; unstar one first.
+
+Favorites are stored in the browser's `localStorage` (`ssa-favorites-v1`) —
+per person, per browser, no account and no server state. Clearing site data
+resets them. Upgrade path if this ever runs behind SSO: key favorites
+server-side by the authenticated user (a `/api/favorites` route reading the
+header described under Authentication, rows in SQLite, and the localStorage
+calls in `public/app.js` swapped for API calls).
 
 ## Running
 
@@ -106,17 +111,27 @@ Subscriptions turn status changes into notifications (Slack incoming
 webhooks and/or generic JSON webhooks — the generic payload works for
 Teams connectors, PagerDuty-compatible endpoints, or your own receiver).
 
-```bash
-cp alerts.example.json alerts.json   # edit vendors + webhook URLs
-ALERTS_CONFIG=./alerts.json npm start
-```
+### Set it up (Slack example)
 
-Or, for a single all-vendors subscription, skip the file:
+1. **Get a webhook URL.** In Slack: *Apps → Incoming Webhooks → Add to
+   Slack*, pick a channel, copy the `https://hooks.slack.com/services/…`
+   URL. Treat it like a password.
+2. **Create your config:** `cp alerts.example.json alerts.json`, then edit:
+   paste the webhook URL, list the vendor keys you care about (`"*"` for
+   all — keys are in `server/vendors.json` and every `/api/statuses`
+   entry), set `min_severity`, and pick events (`outage`, `recovery`,
+   `maintenance`, `improvement`).
+3. **Start (or restart) with alerting on:**
+   `ALERTS_CONFIG=./alerts.json npm start` — the boot log confirms
+   `alerting enabled: <subscription names> (confirm after N polls)`.
+   Editing `alerts.json` requires a restart.
+4. **Send a test** (below) — a 🧪 message should land in the channel
+   within seconds. Then watch real deliveries at `GET /api/alerts`.
+
+Shortcut for one all-vendors subscription, no file: set
 `ALERT_SLACK_WEBHOOK=...` and/or `ALERT_WEBHOOK_URL=...` in the environment.
 
-Each subscription picks its vendors (or `"*"`), its channels, a minimum
-severity, and which events it wants (`outage`, `recovery`, `maintenance`,
-`improvement`). The anti-spam rules are the product:
+### How alerts behave
 
 - **Transitions only** — steady states never notify.
 - **Confirmation polls** (`confirm_polls`, default 2): a new status must be
