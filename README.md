@@ -100,6 +100,48 @@ npm run smoke
 | `FETCH_TIMEOUT_MS` | `20000` | Per-vendor fetch timeout |
 | `AUTH_HEADER` | *(unset)* | If set, `/api/*` requires this header — see below |
 
+## Alerting
+
+Subscriptions turn status changes into notifications (Slack incoming
+webhooks and/or generic JSON webhooks — the generic payload works for
+Teams connectors, PagerDuty-compatible endpoints, or your own receiver).
+
+```bash
+cp alerts.example.json alerts.json   # edit vendors + webhook URLs
+ALERTS_CONFIG=./alerts.json npm start
+```
+
+Or, for a single all-vendors subscription, skip the file:
+`ALERT_SLACK_WEBHOOK=...` and/or `ALERT_WEBHOOK_URL=...` in the environment.
+
+Each subscription picks its vendors (or `"*"`), its channels, a minimum
+severity, and which events it wants (`outage`, `recovery`, `maintenance`,
+`improvement`). The anti-spam rules are the product:
+
+- **Transitions only** — steady states never notify.
+- **Confirmation polls** (`confirm_polls`, default 2): a new status must be
+  seen in consecutive polls before firing, so a sub-10-minute blip sends
+  nothing. Applies to recoveries too — a flapping vendor produces silence.
+- **Recovery pairing** — "back to operational" goes only to subscriptions
+  that received the outage.
+- **Daily cap** per vendor (`max_alerts_per_vendor_day`, default 10);
+  suppressed alerts are logged, not sent.
+- **Deploying mid-outage is safe** — first sight of a vendor adopts its
+  current status silently.
+- Feed failures (`unknown`) never alert subscribers; watch `/api/health`
+  for those instead.
+
+Inspect and test without waiting for an outage:
+
+```bash
+curl localhost:8080/api/alerts                       # config summary + delivery log
+curl -X POST localhost:8080/api/alerts/test \
+  -H 'content-type: application/json' -d '{"subscription":"core-stack"}'
+```
+
+Webhook URLs are secrets: `alerts.json` is gitignored, and `/api/alerts`
+never exposes URLs (channel types only).
+
 ## Authentication
 
 The app ships without built-in accounts on purpose: deploy it behind your

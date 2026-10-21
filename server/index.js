@@ -12,6 +12,7 @@ const path = require('node:path');
 
 const { Store } = require('./db');
 const { Poller } = require('./poller');
+const { Alerter, loadAlertConfig } = require('./alerter');
 
 const ROOT = path.join(__dirname, '..');
 const PUBLIC = path.join(ROOT, 'public');
@@ -23,7 +24,9 @@ const AUTH_HEADER = (process.env.AUTH_HEADER || '').toLowerCase();
 
 const vendors = JSON.parse(fs.readFileSync(path.join(__dirname, 'vendors.json'), 'utf8'));
 const store = new Store(DB_PATH);
-const poller = new Poller(store, vendors, { intervalMs: POLL_INTERVAL_MS, timeoutMs: FETCH_TIMEOUT_MS });
+const alertConfig = loadAlertConfig(process.env);
+const alerter = new Alerter(store, alertConfig);
+const poller = new Poller(store, vendors, { intervalMs: POLL_INTERVAL_MS, timeoutMs: FETCH_TIMEOUT_MS, alerter });
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -92,6 +95,21 @@ const server = http.createServer(async (req, res) => {
         const r = await poller.pollAll();
         return sendJson(res, 200, r);
       }
+      if (p === '/api/alerts' && req.method === 'GET') {
+        return sendJson(res, 200, { ...alerter.summary(), recent: store.getAlerts(100) });
+      }
+      if (p === '/api/alerts/test' && req.method === 'POST') {
+        let body = '';
+        req.on('data', c => { body += c; });
+        const name = await new Promise((resolve) => {
+          req.on('end', () => {
+            try { resolve(JSON.parse(body || '{}').subscription || null); }
+            catch { resolve(null); }
+          });
+        });
+        const r = await alerter.sendTest(name);
+        return sendJson(res, r.ok ? 200 : 400, r);
+      }
       return sendJson(res, 404, { error: 'not found' });
     } catch (e) {
       console.error('[api]', e);
@@ -129,6 +147,9 @@ async function main() {
   const r = await poller.pollAll();
   console.log(`[saas-status] initial poll: ${r.ok}/${r.polled} ok in ${r.durationMs}ms` +
     (r.failed && r.failed.length ? ` — failed: ${r.failed.join(', ')}` : ''));
+  console.log(alerter.enabled
+    ? `[saas-status] alerting enabled: ${alertConfig.subscriptions.map(s => s.name).join(', ')} (confirm after ${alertConfig.confirm_polls} polls)`
+    : '[saas-status] alerting disabled (set ALERTS_CONFIG or ALERT_SLACK_WEBHOOK/ALERT_WEBHOOK_URL)');
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

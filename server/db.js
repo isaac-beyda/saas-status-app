@@ -17,6 +17,8 @@ class Store {
       CREATE TABLE IF NOT EXISTS latest (key TEXT PRIMARY KEY, payload TEXT NOT NULL, fetched_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS health (key TEXT PRIMARY KEY, payload TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS history (date TEXT PRIMARY KEY, payload TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS alert_state (key TEXT PRIMARY KEY, payload TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS alerts_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, payload TEXT NOT NULL);
     `);
     this.q = {
       upLatest: this.db.prepare('INSERT INTO latest(key, payload, fetched_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload, fetched_at = excluded.fetched_at'),
@@ -24,7 +26,11 @@ class Store {
       upHealth: this.db.prepare('INSERT INTO health(key, payload) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload'),
       getHealth: this.db.prepare('SELECT key, payload FROM health'),
       upHistory: this.db.prepare('INSERT INTO history(date, payload) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET payload = excluded.payload'),
-      getHistory: this.db.prepare('SELECT date, payload FROM history ORDER BY date ASC')
+      getHistory: this.db.prepare('SELECT date, payload FROM history ORDER BY date ASC'),
+      upAlertState: this.db.prepare('INSERT INTO alert_state(key, payload) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload'),
+      getAlertState: this.db.prepare('SELECT payload FROM alert_state WHERE key = ?'),
+      addAlertLog: this.db.prepare('INSERT INTO alerts_log(ts, payload) VALUES (?, ?)'),
+      getAlertLog: this.db.prepare('SELECT ts, payload FROM alerts_log ORDER BY id DESC LIMIT ?')
     };
   }
 
@@ -52,6 +58,23 @@ class Store {
 
   getHistory() {
     return this.q.getHistory.all().map(r => ({ date: r.date, ...JSON.parse(r.payload) }));
+  }
+
+  getAlertState(key) {
+    const row = this.q.getAlertState.get(key);
+    return row ? JSON.parse(row.payload) : null;
+  }
+
+  saveAlertState(key, payload) {
+    this.q.upAlertState.run(key, JSON.stringify(payload));
+  }
+
+  logAlert(entry) {
+    this.q.addAlertLog.run(entry.ts || new Date().toISOString(), JSON.stringify(entry));
+  }
+
+  getAlerts(limit = 100) {
+    return this.q.getAlertLog.all(limit).map(r => ({ ts: r.ts, ...JSON.parse(r.payload) }));
   }
 
   close() { this.db.close(); }

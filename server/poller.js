@@ -29,6 +29,7 @@ class Poller {
     this.intervalMs = opts.intervalMs || 5 * 60 * 1000;
     this.timeoutMs = opts.timeoutMs || 20000;
     this.concurrency = opts.concurrency || 8;
+    this.alerter = opts.alerter || null;
     this.timer = null;
     this.polling = false;
     this.lastPollAt = null;
@@ -119,6 +120,16 @@ class Poller {
     await Promise.all(workers);
     this.lastPollAt = new Date().toISOString();
     this.lastPollDurationMs = Date.now() - started;
+    if (this.alerter && this.alerter.enabled) {
+      const byKey = new Map(this.store.getLatest().map(r => [r.key, r.payload]));
+      for (const v of this.vendors) {
+        const svc = byKey.get(v.key);
+        if (svc) {
+          try { await this.alerter.process(svc, new Date(this.lastPollAt)); }
+          catch (e) { console.error('[alerts] process failed for', v.key, e); }
+        }
+      }
+    }
     this.writeDailyRollup();
     this.polling = false;
     return {

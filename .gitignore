@@ -1,6 +1,7 @@
 node_modules/
 data/
 .env
+alerts.json
 *.db
 *.log
 .DS_Store
