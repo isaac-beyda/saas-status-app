@@ -351,3 +351,14 @@ body {
   padding-left: 8px;
 }
 .meta-value.health-bad { color: #e8a13a; }
+
+/* uptime section */
+.uptime { margin: 1.25rem 0 0; }
+.uptime-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.uptime-controls { display: flex; gap: 0.75rem; align-items: center; }
+.uptime-note { color: var(--muted, #888); font-size: 0.85rem; margin: 0.25rem 0 0.75rem; }
+.uptime-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.uptime-table th { text-align: left; border-bottom: 1px solid var(--border, #333); padding: 0.4rem 0.5rem; }
+.uptime-table td { border-bottom: 1px solid var(--border, #222); padding: 0.35rem 0.5rem; }
+.uptime-bar { display: inline-block; width: 90px; height: 8px; background: var(--border, #333); border-radius: 4px; overflow: hidden; vertical-align: middle; margin-right: 0.4rem; }
+.uptime-bar span { display: block; height: 100%; background: #2ecc71; }

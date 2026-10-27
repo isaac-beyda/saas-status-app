@@ -73,6 +73,25 @@
     </div>
   </section>
 
+  <section class="uptime" aria-label="Uptime and SLA">
+    <div class="uptime-head">
+      <h2 class="section-title">Uptime <span class="mono" id="uptime-period"></span></h2>
+      <div class="uptime-controls">
+        <select id="uptime-days" aria-label="Uptime period">
+          <option value="7">Last 7 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+        <a class="link-btn" id="uptime-csv" href="/api/uptime.csv?days=30">Download CSV</a>
+      </div>
+    </div>
+    <p class="uptime-note">Uptime = operational polls ÷ (all polls − maintenance − unknown). Downtime minutes are estimated from the 5-minute poll cadence. Uptime data starts when this version first polls; earlier history is daily only.</p>
+    <table class="uptime-table" id="uptime-table">
+      <thead><tr><th>Vendor</th><th>Uptime</th><th>Downtime</th><th>Polls</th></tr></thead>
+      <tbody id="uptime-body"></tbody>
+    </table>
+  </section>
+
   <section class="toolbar" aria-label="Filters">
     <div class="search-wrap">
       <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>

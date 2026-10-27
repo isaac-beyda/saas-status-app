@@ -14,6 +14,7 @@ const { Store } = require('./db');
 const { Poller } = require('./poller');
 const { Alerter, loadAlertConfig } = require('./alerter');
 const { loadBoardsConfig, boardByName, filterByBoard } = require('./boards');
+const { computeUptime, uptimeCsv } = require('./uptime');
 
 const ROOT = path.join(__dirname, '..');
 const PUBLIC = path.join(ROOT, 'public');
@@ -21,6 +22,7 @@ const PORT = Number(process.env.PORT || 8080);
 const DB_PATH = process.env.DB_PATH || path.join(ROOT, 'data', 'status.db');
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS || 5 * 60 * 1000);
 const FETCH_TIMEOUT_MS = Number(process.env.FETCH_TIMEOUT_MS || 20000);
+const UPTIME_RETENTION_DAYS = Number(process.env.UPTIME_RETENTION_DAYS || 90);
 const AUTH_HEADER = (process.env.AUTH_HEADER || '').toLowerCase();
 
 const vendors = JSON.parse(fs.readFileSync(path.join(__dirname, 'vendors.json'), 'utf8'));
@@ -28,7 +30,7 @@ const boards = loadBoardsConfig(process.env);
 const store = new Store(DB_PATH);
 const alertConfig = loadAlertConfig(process.env);
 const alerter = new Alerter(store, alertConfig);
-const poller = new Poller(store, vendors, { intervalMs: POLL_INTERVAL_MS, timeoutMs: FETCH_TIMEOUT_MS, alerter });
+const poller = new Poller(store, vendors, { intervalMs: POLL_INTERVAL_MS, timeoutMs: FETCH_TIMEOUT_MS, alerter, retentionDays: UPTIME_RETENTION_DAYS });
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -106,6 +108,36 @@ const server = http.createServer(async (req, res) => {
             vendor_count: b.vendors === '*' ? vendors.length : b.vendors.filter(k => vendors.some(v => v.key === k)).length
           }))
         });
+      }
+      if ((p === '/api/uptime' || p === '/api/uptime.csv') && req.method === 'GET') {
+        const days = Math.max(1, Math.min(UPTIME_RETENTION_DAYS, Number(url.searchParams.get('days') || 30) || 30));
+        const now = Date.now();
+        const since = new Date(now - days * 86400000).toISOString();
+        const counts = store.getUptimeCounts(since);
+        let list = vendors;
+        const boardName = url.searchParams.get('board');
+        if (boardName) {
+          const board = boardByName(boards, boardName);
+          if (!board) return sendJson(res, 404, { error: 'unknown board' });
+          list = filterByBoard(vendors, board);
+        }
+        const vendorParam = url.searchParams.get('vendor');
+        if (vendorParam) list = list.filter(v => v.key === vendorParam);
+        const period = { days, start: since, end: new Date(now).toISOString() };
+        const rows = list.map(v => {
+          const c = computeUptime(counts[v.key] || {}, POLL_INTERVAL_MS);
+          return { key: v.key, name: v.name, ...c };
+        }).sort((a, b) => (a.uptime_pct == null ? 101 : a.uptime_pct) - (b.uptime_pct == null ? 101 : b.uptime_pct));
+        if (p === '/api/uptime.csv') {
+          const body = uptimeCsv(rows, period);
+          res.writeHead(200, {
+            'content-type': 'text/csv; charset=utf-8',
+            'content-disposition': 'attachment; filename="saas-uptime-' + days + 'd.csv"',
+            'cache-control': 'no-store'
+          });
+          return res.end(body);
+        }
+        return sendJson(res, 200, { period_days: period.days, period_start: period.start, period_end: period.end, poll_interval_ms: POLL_INTERVAL_MS, vendors: rows });
       }
       if (p === '/api/health' && req.method === 'GET') return sendJson(res, 200, healthPayload());
       if (p === '/api/history' && req.method === 'GET') {

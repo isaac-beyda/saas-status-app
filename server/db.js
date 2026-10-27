@@ -19,6 +19,8 @@ class Store {
       CREATE TABLE IF NOT EXISTS history (date TEXT PRIMARY KEY, payload TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS alert_state (key TEXT PRIMARY KEY, payload TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS alerts_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, payload TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS samples (ts TEXT NOT NULL, key TEXT NOT NULL, status TEXT NOT NULL);
+      CREATE INDEX IF NOT EXISTS samples_key_ts ON samples(key, ts);
     `);
     this.q = {
       upLatest: this.db.prepare('INSERT INTO latest(key, payload, fetched_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload, fetched_at = excluded.fetched_at'),
@@ -30,7 +32,10 @@ class Store {
       upAlertState: this.db.prepare('INSERT INTO alert_state(key, payload) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload = excluded.payload'),
       getAlertState: this.db.prepare('SELECT payload FROM alert_state WHERE key = ?'),
       addAlertLog: this.db.prepare('INSERT INTO alerts_log(ts, payload) VALUES (?, ?)'),
-      getAlertLog: this.db.prepare('SELECT ts, payload FROM alerts_log ORDER BY id DESC LIMIT ?')
+      getAlertLog: this.db.prepare('SELECT ts, payload FROM alerts_log ORDER BY id DESC LIMIT ?'),
+      addSample: this.db.prepare('INSERT INTO samples(ts, key, status) VALUES (?, ?, ?)'),
+      uptimeCounts: this.db.prepare('SELECT key, status, COUNT(*) AS n FROM samples WHERE ts >= ? GROUP BY key, status'),
+      pruneSamples: this.db.prepare('DELETE FROM samples WHERE ts < ?')
     };
   }
 
@@ -75,6 +80,22 @@ class Store {
 
   getAlerts(limit = 100) {
     return this.q.getAlertLog.all(limit).map(r => ({ ts: r.ts, ...JSON.parse(r.payload) }));
+  }
+
+  recordSample(ts, key, status) {
+    this.q.addSample.run(ts, key, status);
+  }
+
+  getUptimeCounts(sinceTs) {
+    const out = {};
+    for (const row of this.q.uptimeCounts.all(sinceTs)) {
+      (out[row.key] = out[row.key] || {})[row.status] = row.n;
+    }
+    return out;
+  }
+
+  pruneSamples(cutoffTs) {
+    return this.q.pruneSamples.run(cutoffTs).changes;
   }
 
   close() { this.db.close(); }

@@ -93,6 +93,25 @@ counts. Board names are lowercase URL slugs. A board is a view, not an
 alert rule — mirror its vendor list in an alert subscription if you want
 that board's team paged too.
 
+## Uptime & SLA reports
+
+The poller now records one sample per vendor per poll (5-minute
+cadence), retained for `UPTIME_RETENTION_DAYS` (default 90) and pruned
+automatically. The dashboard's **Uptime** section shows a worst-first
+table for the last 7/30/90 days, and the same data is downloadable:
+
+- `GET /api/uptime?days=30` — per vendor: uptime %, downtime minutes,
+  poll count, status breakdown (accepts `board=` and `vendor=` filters)
+- `GET /api/uptime.csv?days=30` — the same report as a CSV download
+
+Definition, stated in the UI: a poll counts as UP when the vendor is
+operational; scheduled maintenance is excluded (not "down"); unknown
+(our feed failed) is excluded too; degraded/partial/major count as
+down. Downtime minutes are estimated as down polls × poll interval.
+One honest limitation: uptime % only covers periods since sample
+recording started (this release) — the older daily history is
+last-of-day records, which can't produce a real uptime %.
+
 ## Running
 
 Local (Node ≥ 22.5, nothing to install):

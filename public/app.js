@@ -368,6 +368,33 @@ async function refreshNow() {
   }
 }
 
+/* ---------- uptime ---------- */
+async function loadUptime() {
+  const days = $('#uptime-days').value || '30';
+  const q = '?days=' + encodeURIComponent(days) + (BOARD ? '&board=' + encodeURIComponent(BOARD) : '');
+  const csv = $('#uptime-csv');
+  csv.href = '/api/uptime.csv' + q;
+  try {
+    const r = await fetch('/api/uptime' + q, { cache: 'no-store' });
+    if (!r.ok) throw new Error('uptime HTTP ' + r.status);
+    const j = await r.json();
+    $('#uptime-period').textContent = '(' + j.period_days + 'd)';
+    const body = $('#uptime-body');
+    if (!j.vendors.length) {
+      body.innerHTML = '<tr><td colspan="4">No uptime samples yet — they accumulate with each poll.</td></tr>';
+      return;
+    }
+    body.innerHTML = j.vendors.map(v => {
+      const pct = v.uptime_pct == null ? '—' : v.uptime_pct.toFixed(2) + '%';
+      const bar = v.uptime_pct == null ? 0 : v.uptime_pct;
+      return '<tr><td>' + esc(v.name) + '</td><td><div class="uptime-bar"><span style="width:' + bar + '%"></span></div> ' + pct +
+        '</td><td>' + v.downtime_minutes + ' min</td><td>' + v.polls + '</td></tr>';
+    }).join('');
+  } catch (e) {
+    $('#uptime-body').innerHTML = '<tr><td colspan="4">Uptime data unavailable.</td></tr>';
+  }
+}
+
 /* ---------- boot ---------- */
 async function loadBoards() {
   try {
@@ -398,6 +425,7 @@ async function loadBoards() {
     u.searchParams.set('board', BOARD);
     history.replaceState(null, '', u.pathname + u.search);
     loadData().catch(() => {});
+    loadUptime().catch(() => {});
   });
 }
 
@@ -421,6 +449,8 @@ async function boot() {
   sel.addEventListener('change', render);
   $('#problems-only').addEventListener('change', render);
   $('#refresh-btn').addEventListener('click', refreshNow);
+  $('#uptime-days').addEventListener('change', () => loadUptime().catch(() => {}));
+  loadUptime().catch(() => {});
   /* the server polls feeds itself; the UI just re-reads its cache each minute */
   setInterval(() => { loadData().catch(() => {}); }, 60000);
 }

@@ -30,6 +30,7 @@ class Poller {
     this.timeoutMs = opts.timeoutMs || 20000;
     this.concurrency = opts.concurrency || 8;
     this.alerter = opts.alerter || null;
+    this.retentionDays = opts.retentionDays || 90;
     this.timer = null;
     this.polling = false;
     this.lastPollAt = null;
@@ -84,12 +85,14 @@ class Poller {
       health.last_status = result.status;
       this.store.saveHealth(vendor.key, health);
       this.store.saveLatest(vendor.key, this.toService(vendor, result, fetchedAt, null), fetchedAt);
+      this.store.recordSample(fetchedAt, vendor.key, result.status);
       return { key: vendor.key, ok: true, status: result.status };
     } catch (e) {
       health.last_error = String(e && e.message || e);
       health.consecutive_failures += 1;
       health.last_duration_ms = Date.now() - started;
       this.store.saveHealth(vendor.key, health);
+      this.store.recordSample(new Date().toISOString(), vendor.key, 'unknown');
       /* keep serving the last good result; only a never-succeeded vendor goes unknown */
       const existing = this.store.getLatest().find(r => r.key === vendor.key);
       if (!existing) {
@@ -120,6 +123,9 @@ class Poller {
     await Promise.all(workers);
     this.lastPollAt = new Date().toISOString();
     this.lastPollDurationMs = Date.now() - started;
+    try {
+      this.store.pruneSamples(new Date(Date.now() - this.retentionDays * 86400000).toISOString());
+    } catch (e) { console.error('[poller] sample prune failed:', e.message); }
     if (this.alerter && this.alerter.enabled) {
       const byKey = new Map(this.store.getLatest().map(r => [r.key, r.payload]));
       for (const v of this.vendors) {
