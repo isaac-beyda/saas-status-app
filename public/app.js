@@ -57,6 +57,8 @@ function pluralWord(n, one, many) { return (n === 1 ? one : many); }
 let SERVICES = [];            /* API service objects */
 let HEALTH = {};              /* key -> feed health */
 let lastRefreshed = null;
+let BOARDS = [];
+let BOARD = null;
 const OPEN = new Set();       /* expanded detail sections, preserved across renders */
 let firstPaintDone = false;
 
@@ -326,8 +328,9 @@ function showToast(msg) {
 
 /* ---------- data cycle ---------- */
 async function loadData() {
+  const q = BOARD ? '?board=' + encodeURIComponent(BOARD) : '';
   const [sRes, hRes] = await Promise.all([
-    fetch('/api/statuses', { cache: 'no-store' }),
+    fetch('/api/statuses' + q, { cache: 'no-store' }),
     fetch('/api/health', { cache: 'no-store' }).catch(() => null)
   ]);
   if (!sRes.ok) throw new Error('statuses HTTP ' + sRes.status);
@@ -366,8 +369,41 @@ async function refreshNow() {
 }
 
 /* ---------- boot ---------- */
+async function loadBoards() {
+  try {
+    const r = await fetch('/api/boards', { cache: 'no-store' });
+    BOARDS = (await r.json()).boards || [];
+  } catch { BOARDS = []; }
+  if (!BOARDS.length) BOARDS = [{ name: 'all', title: 'All vendors' }];
+  const sel = $('#board');
+  sel.innerHTML = '';
+  BOARDS.forEach(b => {
+    const o = document.createElement('option');
+    o.value = b.name;
+    o.textContent = b.title + (b.vendor_count != null ? ' (' + b.vendor_count + ')' : '');
+    sel.appendChild(o);
+  });
+  const fromPath = location.pathname.match(/^\/board\/([a-z0-9-]+)\/?$/);
+  const want = (fromPath && fromPath[1]) || new URLSearchParams(location.search).get('board');
+  BOARD = BOARDS.some(b => b.name === want) ? want : BOARDS[0].name;
+  sel.value = BOARD;
+  if (want && want !== BOARD) {
+    const u = new URL(location.href);
+    u.searchParams.set('board', BOARD);
+    history.replaceState(null, '', u.pathname + u.search);
+  }
+  sel.addEventListener('change', () => {
+    BOARD = sel.value || BOARDS[0].name;
+    const u = new URL(location.href);
+    u.searchParams.set('board', BOARD);
+    history.replaceState(null, '', u.pathname + u.search);
+    loadData().catch(() => {});
+  });
+}
+
 async function boot() {
   try {
+    await loadBoards();
     await loadData();
   } catch (e) {
     $('#grid').innerHTML = '<div class="empty-state"><h3>Could not load statuses</h3><p>The status API is unreachable. Check the server, then reload.</p></div>';

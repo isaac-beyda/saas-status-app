@@ -72,6 +72,27 @@ server-side by the authenticated user (a `/api/favorites` route reading the
 header described under Authentication, rows in SQLite, and the localStorage
 calls in `public/app.js` swapped for API calls).
 
+## Boards
+
+Boards are named vendor sets — one dashboard per team, client, or stack —
+in the StatusGator style. Define them in `boards.json` (copy
+`boards.example.json` and edit; without a file you get a single "All
+vendors" board):
+
+```json
+{ "boards": [
+  { "name": "core", "title": "Core stack", "vendors": ["slack", "github", "aws"] },
+  { "name": "all", "title": "All vendors", "vendors": "*" }
+] }
+```
+
+Pick a board in the switcher at the top of the dashboard, or share it
+directly: `/board/core` or `?board=core`. The API honors the same filter
+(`/api/statuses?board=core`); `/api/boards` lists boards with vendor
+counts. Board names are lowercase URL slugs. A board is a view, not an
+alert rule — mirror its vendor list in an alert subscription if you want
+that board's team paged too.
+
 ## Running
 
 Local (Node ≥ 22.5, nothing to install):
@@ -130,6 +151,35 @@ Teams connectors, PagerDuty-compatible endpoints, or your own receiver).
 
 Shortcut for one all-vendors subscription, no file: set
 `ALERT_SLACK_WEBHOOK=...` and/or `ALERT_WEBHOOK_URL=...` in the environment.
+
+### Channels
+
+One subscription can fan out to many destinations. Supported channel
+types (each entry in a subscription's `channels`):
+
+- `slack` — incoming webhook (Block Kit message)
+- `teams` — Workflows webhook (Adaptive Card)
+- `discord` — webhook (embed)
+- `googlechat` — webhook (text + card)
+- `webhook` — generic JSON POST (optionally with custom `headers`, which
+  also makes it usable for Opsgenie-style APIs)
+- `pagerduty` — Events API v2 via `routing_key`; outages trigger and
+  recoveries resolve under one dedup key per vendor
+- `email` — SMTP: `to`, `smtp_host`, `smtp_port` (default 587),
+  `smtp_secure` (`starttls` / `tls` / `none`), `smtp_user`, `smtp_pass`
+
+### Component filters
+
+To alert on part of a vendor instead of the whole thing (StatusGator's
+noise-reducer), add a `components` map to a subscription: patterns are
+matched case-insensitively against affected component names.
+
+```json
+{ "name": "aws-east", "vendors": ["aws"], "components": { "aws": ["us-east-1"] }, "channels": [ ... ] }
+```
+
+Vendors without a `components` entry in that subscription keep
+whole-vendor behavior.
 
 ### How alerts behave
 

@@ -13,6 +13,7 @@ const path = require('node:path');
 const { Store } = require('./db');
 const { Poller } = require('./poller');
 const { Alerter, loadAlertConfig } = require('./alerter');
+const { loadBoardsConfig, boardByName, filterByBoard } = require('./boards');
 
 const ROOT = path.join(__dirname, '..');
 const PUBLIC = path.join(ROOT, 'public');
@@ -23,6 +24,7 @@ const FETCH_TIMEOUT_MS = Number(process.env.FETCH_TIMEOUT_MS || 20000);
 const AUTH_HEADER = (process.env.AUTH_HEADER || '').toLowerCase();
 
 const vendors = JSON.parse(fs.readFileSync(path.join(__dirname, 'vendors.json'), 'utf8'));
+const boards = loadBoardsConfig(process.env);
 const store = new Store(DB_PATH);
 const alertConfig = loadAlertConfig(process.env);
 const alerter = new Alerter(store, alertConfig);
@@ -41,14 +43,20 @@ function sendJson(res, code, obj) {
   res.end(body);
 }
 
-function statusesPayload() {
+function statusesPayload(boardName) {
   const rows = store.getLatest();
   const byKey = new Map(rows.map(r => [r.key, r.payload]));
-  const services = vendors.map(v => byKey.get(v.key)).filter(Boolean);
+  let services = vendors.map(v => byKey.get(v.key)).filter(Boolean);
+  let board = null;
+  if (boardName) {
+    board = boardByName(boards, boardName);
+    if (!board) return null;
+    services = filterByBoard(services, board);
+  }
   const lastRefreshed = rows.length
     ? rows.map(r => r.fetched_at).sort().pop()
     : null;
-  return { last_refreshed: lastRefreshed, services };
+  return { last_refreshed: lastRefreshed, board: board ? board.name : null, services };
 }
 
 function healthPayload() {
@@ -85,7 +93,20 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 401, { error: 'unauthorized: missing ' + AUTH_HEADER + ' header (SSO proxy auth)' });
     }
     try {
-      if (p === '/api/statuses' && req.method === 'GET') return sendJson(res, 200, statusesPayload());
+      if (p === '/api/statuses' && req.method === 'GET') {
+        const payload = statusesPayload(url.searchParams.get('board') || null);
+        if (!payload) return sendJson(res, 404, { error: 'unknown board' });
+        return sendJson(res, 200, payload);
+      }
+      if (p === '/api/boards' && req.method === 'GET') {
+        return sendJson(res, 200, {
+          boards: boards.map(b => ({
+            name: b.name,
+            title: b.title,
+            vendor_count: b.vendors === '*' ? vendors.length : b.vendors.filter(k => vendors.some(v => v.key === k)).length
+          }))
+        });
+      }
       if (p === '/api/health' && req.method === 'GET') return sendJson(res, 200, healthPayload());
       if (p === '/api/history' && req.method === 'GET') {
         const days = store.getHistory();

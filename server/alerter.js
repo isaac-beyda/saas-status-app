@@ -11,6 +11,13 @@
 'use strict';
 
 const fs = require('node:fs');
+const { sendMail } = require('./smtp');
+
+/* Channel types and what each needs:
+   slack/discord/googlechat/teams/webhook: url (+ optional headers)
+   pagerduty: routing_key (Events API v2; outage -> trigger, recovery -> resolve)
+   email: to + smtp_host (+ smtp_port/smtp_secure/smtp_user/smtp_pass) */
+const CHANNEL_TYPES = ['slack', 'webhook', 'teams', 'discord', 'googlechat', 'pagerduty', 'email'];
 
 const SEV = { operational: 0, maintenance: 1, degraded: 2, partial_outage: 3, major_outage: 4 };
 const LABEL = {
@@ -55,11 +62,19 @@ function normalizeConfig(cfg, env) {
       console.warn('[alerts] skipping subscription without name/channels:', s && s.name);
       continue;
     }
-    const channels = s.channels.filter(c => c && (c.type === 'slack' || c.type === 'webhook') && c.url);
+    const channels = [];
+    for (const c of s.channels || []) {
+      if (!c || !CHANNEL_TYPES.includes(c.type)) { console.warn('[alerts] unknown channel type:', c && c.type); continue; }
+      if (c.type === 'pagerduty' && !c.routing_key) { console.warn('[alerts] pagerduty channel without routing_key in', s.name); continue; }
+      if (c.type === 'email' && (!c.to || !c.smtp_host)) { console.warn('[alerts] email channel without to/smtp_host in', s.name); continue; }
+      if (c.type !== 'pagerduty' && c.type !== 'email' && !c.url) { console.warn('[alerts] channel without url in', s.name); continue; }
+      channels.push(c);
+    }
     if (!channels.length) { console.warn('[alerts] subscription has no valid channels:', s.name); continue; }
     subs.push({
       name: s.name,
       vendors: s.vendors === '*' || !s.vendors ? '*' : s.vendors,
+      components: s.components && typeof s.components === 'object' ? s.components : null,
       channels,
       min_severity: SEV[s.min_severity] != null ? s.min_severity : 'degraded',
       events: Array.isArray(s.events) && s.events.length ? s.events : ['outage', 'recovery']
@@ -74,16 +89,21 @@ function normalizeConfig(cfg, env) {
   };
 }
 
+function channelEndpoint(channel) {
+  if (channel.type === 'pagerduty') return 'https://events.pagerduty.com/v2/enqueue';
+  return channel.url;
+}
+
 async function httpSend(channel, payload, fetchFn) {
   let lastErr = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const c = new AbortController();
       const t = setTimeout(() => c.abort(), 10000);
-      const res = await fetchFn(channel.url, {
+      const res = await fetchFn(channelEndpoint(channel), {
         method: 'POST',
         signal: c.signal,
-        headers: { 'content-type': 'application/json', 'user-agent': 'saas-status-app/1.0' },
+        headers: Object.assign({ 'content-type': 'application/json', 'user-agent': 'saas-status-app/1.0' }, channel.headers || {}),
         body: JSON.stringify(payload)
       });
       clearTimeout(t);
@@ -97,24 +117,36 @@ async function httpSend(channel, payload, fetchFn) {
   return { ok: false, error: String(lastErr && lastErr.message || lastErr) };
 }
 
+const PD_SEVERITY = { major_outage: 'critical', partial_outage: 'error', degraded: 'warning', maintenance: 'info', operational: 'info' };
+
+function sharedLines(evt) {
+  const lines = [];
+  if (evt.event !== 'test') {
+    lines.push('*Status:* ' + (LABEL[evt.from_status] || evt.from_status) + ' → ' + (LABEL[evt.to_status] || evt.to_status));
+  }
+  if (evt.summary) lines.push(evt.summary);
+  if (evt.affected_component_names && evt.affected_component_names.length) {
+    const names = evt.affected_component_names;
+    lines.push('*Affected:* ' + names.slice(0, 5).join(', ') + (names.length > 5 ? ' (and ' + (names.length - 5) + ' more)' : ''));
+  }
+  if (evt.affected_functions != null) {
+    lines.push('*Affected functions:* ' + evt.affected_functions + ' of ' + evt.total_functions +
+      (evt.top_incident ? '\n*Latest incident:* ' + evt.top_incident : ''));
+  }
+  return lines;
+}
+
 function buildPayloads(channel, evt) {
+  const emoji = EMOJI[evt.event] || '🔔';
+  const title = evt.event === 'test'
+    ? emoji + ' SaaS Status — test alert'
+    : emoji + ' ' + evt.vendor_name + ' — ' + (LABEL[evt.to_status] || evt.to_status);
+  const lines = sharedLines(evt);
+  const links = ['<' + evt.status_page_url + '|Official status page>'];
+  if (evt.dashboard_url) links.push('<' + evt.dashboard_url + '|Dashboard>');
+  links.push('subscription: ' + evt.subscription);
+
   if (channel.type === 'slack') {
-    const emoji = EMOJI[evt.event] || '🔔';
-    const title = evt.event === 'test'
-      ? emoji + ' SaaS Status — test alert'
-      : emoji + ' ' + evt.vendor_name + ' — ' + (LABEL[evt.to_status] || evt.to_status);
-    const lines = [];
-    if (evt.event !== 'test') {
-      lines.push('*Status:* ' + (LABEL[evt.from_status] || evt.from_status) + ' → ' + (LABEL[evt.to_status] || evt.to_status));
-    }
-    if (evt.summary) lines.push(evt.summary);
-    if (evt.affected_functions != null) {
-      lines.push('*Affected functions:* ' + evt.affected_functions + ' of ' + evt.total_functions +
-        (evt.top_incident ? '\n*Latest incident:* ' + evt.top_incident : ''));
-    }
-    const links = ['<' + evt.status_page_url + '|Official status page>'];
-    if (evt.dashboard_url) links.push('<' + evt.dashboard_url + '|Dashboard>');
-    links.push('subscription: ' + evt.subscription);
     return {
       text: title + (evt.summary ? ' — ' + evt.summary : ''),
       blocks: [
@@ -124,6 +156,70 @@ function buildPayloads(channel, evt) {
       ]
     };
   }
+  if (channel.type === 'teams') {
+    return {
+      type: 'message',
+      attachments: [{
+        contentType: 'application/vnd.microsoft.card.adaptive',
+        content: {
+          type: 'AdaptiveCard', $schema: 'http://adaptivecards.io/schemas/adaptive-card.json', version: '1.4',
+          body: [
+            { type: 'TextBlock', text: title, weight: 'Bolder', size: 'Medium', wrap: true },
+            { type: 'TextBlock', text: lines.join('\n') || 'Test alert — your subscription is wired up correctly.', wrap: true }
+          ],
+          actions: evt.status_page_url ? [{ type: 'Action.OpenUrl', title: 'Official status page', url: evt.status_page_url }] : []
+        }
+      }]
+    };
+  }
+  if (channel.type === 'discord') {
+    const color = evt.event === 'recovery' ? 0x2ecc71 : evt.to_status === 'major_outage' ? 0xe74c3c : evt.to_status === 'partial_outage' ? 0xe67e22 : 0xf1c40f;
+    return {
+      content: title,
+      embeds: [{
+        title: evt.vendor_name + ' — ' + (LABEL[evt.to_status] || evt.to_status),
+        description: lines.join('\n') || 'Test alert — your subscription is wired up correctly.',
+        color,
+        timestamp: evt.ts,
+        footer: { text: 'subscription: ' + evt.subscription }
+      }]
+    };
+  }
+  if (channel.type === 'googlechat') {
+    return {
+      text: title + (lines.length ? '\n' + lines.join('\n') : ''),
+      cardsV2: [{
+        card: {
+          header: { title: evt.vendor_name, subtitle: LABEL[evt.to_status] || evt.to_status },
+          sections: [{ widgets: [{ textParagraph: { text: lines.join('\n') || 'Test alert — your subscription is wired up correctly.' } }] }]
+        }
+      }]
+    };
+  }
+  if (channel.type === 'pagerduty') {
+    return {
+      routing_key: channel.routing_key,
+      dedup_key: 'saas-status:' + evt.vendor_key,
+      event_action: evt.event === 'recovery' ? 'resolve' : 'trigger',
+      payload: {
+        summary: title + (evt.summary ? ' — ' + evt.summary : ''),
+        severity: PD_SEVERITY[evt.to_status] || 'warning',
+        source: 'saas-status-app',
+        component: evt.vendor_name,
+        group: evt.subscription,
+        custom_details: {
+          from_status: evt.from_status,
+          to_status: evt.to_status,
+          affected_functions: evt.affected_functions,
+          total_functions: evt.total_functions,
+          affected_components: evt.affected_component_names,
+          top_incident: evt.top_incident,
+          status_page_url: evt.status_page_url
+        }
+      }
+    };
+  }
+  /* generic webhook */
   return {
     event: evt.event,
     vendor: { key: evt.vendor_key, name: evt.vendor_name },
@@ -132,11 +228,27 @@ function buildPayloads(channel, evt) {
     summary: evt.summary,
     affected_functions: evt.affected_functions,
     total_functions: evt.total_functions,
+    affected_components: evt.affected_component_names,
     top_incident: evt.top_incident,
     status_page_url: evt.status_page_url,
     dashboard_url: evt.dashboard_url || undefined,
     subscription: evt.subscription,
     ts: evt.ts
+  };
+}
+
+function buildEmail(channel, evt) {
+  const emoji = EMOJI[evt.event] || '🔔';
+  const title = evt.event === 'test'
+    ? emoji + ' SaaS Status — test alert'
+    : emoji + ' ' + evt.vendor_name + ' — ' + (LABEL[evt.to_status] || evt.to_status);
+  const lines = sharedLines(evt);
+  return {
+    from: channel.from || 'saas-status@localhost',
+    to: [channel.to],
+    subject: '[SaaS Status] ' + title,
+    text: [title, '', ...lines, '', 'Official status page: ' + evt.status_page_url,
+      evt.dashboard_url ? 'Dashboard: ' + evt.dashboard_url : '', 'Subscription: ' + evt.subscription].filter(Boolean).join('\n')
   };
 }
 
@@ -146,6 +258,7 @@ class Alerter {
     this.config = config;
     this.fetchFn = opts.fetch || globalThis.fetch;
     this.send = opts.send || ((channel, payload) => httpSend(channel, payload, this.fetchFn));
+    this.sendEmail = opts.sendEmail || ((channel, mail) => sendMail(channel, mail));
   }
 
   get enabled() { return !!this.config; }
@@ -166,10 +279,19 @@ class Alerter {
     };
   }
 
-  matches(sub, vendorKey, event, toStatus) {
+  matches(sub, vendorKey, event, toStatus, componentNames) {
     if (sub.vendors !== '*' && !sub.vendors.includes(vendorKey)) return false;
     if (!sub.events.includes(event)) return false;
     if (event === 'outage' && SEV[toStatus] < SEV[sub.min_severity]) return false;
+    /* Component filter: when the subscription names components for this
+       vendor, only alert if one of the affected components matches a
+       pattern (case-insensitive substring). Vendors without a components
+       entry keep whole-vendor behavior. */
+    if (sub.components && sub.components[vendorKey] && componentNames) {
+      const patterns = sub.components[vendorKey];
+      const hit = componentNames.some(n => patterns.some(p => String(n).toLowerCase().includes(String(p).toLowerCase())));
+      if (!hit) return false;
+    }
     return true;
   }
 
@@ -208,11 +330,14 @@ class Alerter {
     const fired = [];
 
     if (event) {
+      const bad = (service.components || []).filter(c => ['degraded', 'partial_outage', 'major_outage'].includes(c.status)).map(c => c.name);
+      const maint = (service.components || []).filter(c => c.status === 'maintenance').map(c => c.name);
+      const relevantNames = event === 'maintenance' ? maint : bad;
       let recipients;
       if (event === 'recovery') {
         recipients = this.config.subscriptions.filter(s => st.alerted_subs.includes(s.name) && s.events.includes('recovery'));
       } else {
-        recipients = this.config.subscriptions.filter(s => this.matches(s, key, event, to));
+        recipients = this.config.subscriptions.filter(s => this.matches(s, key, event, to, relevantNames));
       }
       const capped = st.day_count >= this.config.max_alerts_per_vendor_day;
       if (recipients.length && capped) {
@@ -223,8 +348,9 @@ class Alerter {
         for (const sub of recipients) {
           evt.subscription = sub.name;
           for (const channel of sub.channels) {
-            const payload = buildPayloads(channel, evt);
-            const res = await this.send(channel, payload);
+            const res = channel.type === 'email'
+              ? await this.sendEmail(channel, buildEmail(channel, evt))
+              : await this.send(channel, buildPayloads(channel, evt));
             this.store.logAlert({
               ts: now.toISOString(), vendor: key, event, from_status: from, to_status: to,
               subscription: sub.name, channel: channel.type, delivered: !!res.ok,
@@ -258,6 +384,8 @@ class Alerter {
       summary: service.overall_label || '',
       affected_functions: components.length ? affected : null,
       total_functions: components.length || null,
+      affected_component_names: components.filter(c => ['degraded', 'partial_outage', 'major_outage'].includes(c.status)).map(c => c.name).slice(0, 50),
+      maintenance_component_names: components.filter(c => c.status === 'maintenance').map(c => c.name).slice(0, 50),
       top_incident: active.length ? active[0].name : null,
       status_page_url: service.status_page_url,
       dashboard_url: this.config.dashboard_url || '',
@@ -280,7 +408,9 @@ class Alerter {
     };
     const results = [];
     for (const channel of sub.channels) {
-      const res = await this.send(channel, buildPayloads(channel, evt));
+      const res = channel.type === 'email'
+        ? await this.sendEmail(channel, buildEmail(channel, evt))
+        : await this.send(channel, buildPayloads(channel, evt));
       results.push({ channel: channel.type, ...res });
       this.store.logAlert({ ts: evt.ts, vendor: 'test', event: 'test', subscription: sub.name, channel: channel.type, delivered: !!res.ok, error: res.ok ? undefined : res.error });
     }
@@ -288,4 +418,4 @@ class Alerter {
   }
 }
 
-module.exports = { Alerter, loadAlertConfig, normalizeConfig, classifyTransition, buildPayloads, SEV, LABEL };
+module.exports = { Alerter, loadAlertConfig, normalizeConfig, classifyTransition, buildPayloads, buildEmail, SEV, LABEL };

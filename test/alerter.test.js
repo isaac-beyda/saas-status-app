@@ -162,3 +162,116 @@ test('sendTest delivers to the named subscription only', async () => {
   const bad = await alerter.sendTest('nope');
   assert.equal(bad.ok, false);
 });
+
+/* --- Wave 1 additions: channels + component filters + SMTP --- */
+const { buildPayloads, buildEmail } = require('../server/alerter');
+const { sendMail } = require('../server/smtp');
+const net = require('node:net');
+
+const evtBase = {
+  event: 'outage', vendor_key: 'aws', vendor_name: 'AWS',
+  from_status: 'operational', to_status: 'partial_outage',
+  summary: 'Elevated errors', affected_functions: 3, total_functions: 40,
+  affected_component_names: ['us-east-1', 'EC2'],
+  status_page_url: 'https://health.aws.amazon.com/health/status',
+  dashboard_url: 'https://status.example.com', subscription: 'core',
+  ts: '2026-10-26T21:00:00.000Z'
+};
+
+test('payloads: teams adaptive card, discord embed, googlechat card', () => {
+  const t = buildPayloads({ type: 'teams', url: 'https://x' }, evtBase);
+  assert.equal(t.attachments[0].contentType, 'application/vnd.microsoft.card.adaptive');
+  assert.match(t.attachments[0].content.body[0].text, /AWS/);
+  const d = buildPayloads({ type: 'discord', url: 'https://x' }, evtBase);
+  assert.equal(d.embeds[0].color, 0xe67e22); /* partial = orange */
+  assert.match(d.embeds[0].description, /us-east-1/);
+  const g = buildPayloads({ type: 'googlechat', url: 'https://x' }, evtBase);
+  assert.equal(g.cardsV2[0].card.header.title, 'AWS');
+});
+
+test('payloads: pagerduty trigger on outage, resolve on recovery, same dedup key', () => {
+  const trig = buildPayloads({ type: 'pagerduty', routing_key: 'RK' }, evtBase);
+  assert.equal(trig.event_action, 'trigger');
+  assert.equal(trig.routing_key, 'RK');
+  assert.equal(trig.payload.severity, 'error');
+  const rec = buildPayloads({ type: 'pagerduty', routing_key: 'RK' }, { ...evtBase, event: 'recovery', from_status: 'partial_outage', to_status: 'operational' });
+  assert.equal(rec.event_action, 'resolve');
+  assert.equal(rec.dedup_key, trig.dedup_key);
+});
+
+test('payloads: email subject and body', () => {
+  const m = buildEmail({ type: 'email', to: 'ops@example.com' }, evtBase);
+  assert.match(m.subject, /AWS/);
+  assert.match(m.text, /us-east-1/);
+  assert.equal(m.to[0], 'ops@example.com');
+});
+
+function svcComp(key, status, compNames) {
+  return {
+    key, name: key.toUpperCase(), overall_status: status, overall_label: status,
+    components: compNames.map(n => ({ name: n, status: status === 'operational' ? 'operational' : 'degraded' })),
+    incidents: [], status_page_url: 'https://status.' + key + '.com'
+  };
+}
+
+test('component filter: only matching affected components alert', async () => {
+  const sub = { name: 'aws-east', vendors: ['aws'], components: { aws: ['us-east-1'] }, channels: [{ type: 'webhook', url: 'https://x.example/h' }], events: ['outage', 'recovery'], min_severity: 'degraded' };
+  const { alerter, sent } = makeAlerter([sub]);
+  await alerter.process(svcComp('aws', 'operational', ['us-east-1', 'eu-west-1']), T(0));
+  await alerter.process(svcComp('aws', 'degraded', ['eu-west-1']), T(1)); /* only eu-west down */
+  assert.equal(sent.length, 0, 'eu-west-only outage must not alert an east-only subscription');
+  await alerter.process(svcComp('aws', 'degraded', ['us-east-1']), T(2));
+  assert.equal(sent.length, 1, 'us-east-1 outage must alert');
+  assert.match(JSON.stringify(sent[0].payload), /us-east-1/);
+});
+
+test('component filter absent for a vendor keeps whole-vendor behavior', async () => {
+  const sub = { name: 'mixed', vendors: ['aws', 'github'], components: { aws: ['us-east-1'] }, channels: [{ type: 'webhook', url: 'https://x.example/h' }], events: ['outage', 'recovery'], min_severity: 'degraded' };
+  const { alerter, sent } = makeAlerter([sub]);
+  await alerter.process(svcComp('github', 'operational', ['API']), T(0));
+  await alerter.process(svcComp('github', 'degraded', ['API']), T(1));
+  await alerter.process(svcComp('github', 'degraded', ['API']), T(2));
+  assert.equal(sent.length, 1, 'github has no component entry, so whole-vendor alerts still fire');
+});
+
+test('smtp: delivers a message to a fake plain server (AUTH LOGIN)', async () => {
+  let captured = '';
+  const server = net.createServer((sock) => {
+    let buf = ''; let stage = 'banner'; let inData = false;
+    sock.write('220 fake ESMTP\r\n');
+    sock.on('data', (chunk) => {
+      buf += chunk.toString();
+      const processLines = () => {
+        let idx;
+        while ((idx = buf.indexOf('\r\n')) >= 0) {
+          const line = buf.slice(0, idx); buf = buf.slice(idx + 2);
+          if (inData) {
+            if (line === '.') { inData = false; captured += ''; sock.write('250 OK\r\n'); }
+            else captured += line + '\n';
+            continue;
+          }
+          if (line.startsWith('EHLO')) sock.write('250-fake\r\n250 AUTH LOGIN\r\n');
+          else if (line === 'AUTH LOGIN') { stage = 'user'; sock.write('334 VXNlcm5hbWU6\r\n'); }
+          else if (stage === 'user') { stage = 'pass'; sock.write('334 UGFzc3dvcmQ6\r\n'); }
+          else if (stage === 'pass') { stage = 'authd'; sock.write('235 OK\r\n'); }
+          else if (line.startsWith('MAIL FROM')) sock.write('250 OK\r\n');
+          else if (line.startsWith('RCPT TO')) sock.write('250 OK\r\n');
+          else if (line === 'DATA') { inData = true; sock.write('354 Go ahead\r\n'); }
+          else if (line === 'QUIT') sock.write('221 Bye\r\n');
+        }
+      };
+      processLines();
+    });
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  const port = server.address().port;
+  try {
+    const res = await sendMail({ smtp_host: '127.0.0.1', smtp_port: port, smtp_secure: 'none', smtp_user: 'u', smtp_pass: 'p' },
+      { from: 'saas@example.com', to: ['ops@example.com'], subject: 'Test', text: 'hello world' });
+    assert.equal(res.ok, true);
+    assert.match(captured, /Subject: Test/);
+    assert.match(captured, /hello world/);
+  } finally {
+    server.close();
+  }
+});
